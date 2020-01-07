@@ -5,10 +5,6 @@ import { CONFIG_TOKEN, DBConfig } from './ngx-indexed-db.meta';
 
 @Injectable()
 export class NgxIndexedDBService {
-	set currentStore(_currentStore: string) {
-		this._currentStore = _currentStore;
-	}
-	private _currentStore: string;
 
 	constructor(@Inject(CONFIG_TOKEN) private dbConfig: DBConfig) {
 		if (!dbConfig.name) {
@@ -20,14 +16,14 @@ export class NgxIndexedDBService {
 		CreateObjectStore(dbConfig.name, dbConfig.version, dbConfig.objectStoresMeta, dbConfig.migrationFactory);
 	}
 
-	add<T>(value: T, key?: any) {
+	add<T>(storeName: string, value: T, key?: any) {
 		return new Promise<number>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then((db: IDBDatabase) => {
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readwrite, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readwrite, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore);
+					objectStore = transaction.objectStore(storeName);
 				let request = objectStore.add(value, key);
 				request.onsuccess = (evt: any) => {
 					key = evt.target.result;
@@ -37,14 +33,14 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	getByKey<T>(key: any) {
+	getByKey<T>(storeName: string, key: any) {
 		return new Promise<any>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then((db: IDBDatabase) => {
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readonly, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readonly, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore);
+					objectStore = transaction.objectStore(storeName);
 				let request = objectStore.get(key);
 				request.onsuccess = function(event: Event) {
 					resolve((<any>event.target).result);
@@ -56,15 +52,15 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	getByID<T>(id: string | number) {
+	getByID<T>(storeName: string, id: string | number) {
 		return new Promise<T>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then((db: IDBDatabase) => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readonly, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readonly, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore),
+					objectStore = transaction.objectStore(storeName),
 					request: IDBRequest;
 				request = objectStore.get(+id);
 				request.onsuccess = function(event: Event) {
@@ -74,15 +70,15 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	getAll<T>() {
+	getAll<T>(storeName: string) {
 		return new Promise<T[]>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readonly, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readonly, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore),
+					objectStore = transaction.objectStore(storeName),
 					result: Array<any> = [];
 
 				const request: IDBRequest = objectStore.getAll();
@@ -97,15 +93,15 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	update<T>(value: T, key?: any) {
+	update<T>(storeName: string, value: T, key?: any) {
 		return new Promise<any>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readwrite, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readwrite, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore);
+					objectStore = transaction.objectStore(storeName);
 				transaction.oncomplete = event => {
 					resolve(event);
 				};
@@ -114,15 +110,15 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	deleteRecord(key: Key) {
+	deleteRecord(storeName: string, key: Key) {
 		return new Promise<any>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readwrite, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readwrite, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore);
+					objectStore = transaction.objectStore(storeName);
 				let request = objectStore.delete(key);
 				request.onsuccess = event => {
 					resolve(event);
@@ -131,15 +127,15 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	clear() {
+	clear(storeName: string) {
 		return new Promise<any>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readwrite, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readwrite, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore);
+					objectStore = transaction.objectStore(storeName);
 				objectStore.clear();
 				transaction.oncomplete = event => {
 					resolve();
@@ -148,29 +144,29 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	delete(key: any) {
+	delete(storeName: string, key: any) {
 		return new Promise<any>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readwrite, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readwrite, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore);
+					objectStore = transaction.objectStore(storeName);
 				objectStore['delete'](key);
 			});
 		});
 	}
 
-	openCursor(cursorCallback: (event: Event) => void, keyRange?: IDBKeyRange) {
+	openCursor(storeName: string, cursorCallback: (event: Event) => void, keyRange?: IDBKeyRange) {
 		return new Promise<void>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readonly, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readonly, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore),
+					objectStore = transaction.objectStore(storeName),
 					request = objectStore.openCursor(keyRange);
 
 				request.onsuccess = (event: Event) => {
@@ -181,15 +177,15 @@ export class NgxIndexedDBService {
 		});
 	}
 
-	getByIndex(indexName: string, key: any) {
+	getByIndex(storeName: string, indexName: string, key: any) {
 		return new Promise<any>((resolve, reject) => {
 			openDatabase(this.dbConfig.name, this.dbConfig.version).then(db => {
-				validateBeforeTransaction(db, this._currentStore, reject);
+				validateBeforeTransaction(db, storeName, reject);
 				let transaction = createTransaction(
 						db,
-						optionsGenerator(DBMode.readonly, this._currentStore, reject, resolve)
+						optionsGenerator(DBMode.readonly, storeName, reject, resolve)
 					),
-					objectStore = transaction.objectStore(this._currentStore),
+					objectStore = transaction.objectStore(storeName),
 					index = objectStore.index(indexName),
 					request = index.get(key);
 				request.onsuccess = (event: Event) => {
